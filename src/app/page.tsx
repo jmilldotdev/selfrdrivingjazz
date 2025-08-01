@@ -1,103 +1,123 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
-export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+interface ShrimpProps {
+  size: number;
+  left: number;
+  delay: number;
+  duration: number;
+  animationType: "rotate" | "flip" | "static";
+}
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+function Shrimp({ size, left, delay, duration, animationType }: ShrimpProps) {
+  // Start way above the viewport based on size
+  const startY = -(size + 200);
+  
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: `${left}%`,
+        top: `${startY}px`,
+        width: `${size}px`,
+        height: `${size}px`,
+        animation: `${
+          animationType === "rotate"
+            ? "fallRotate"
+            : animationType === "flip"
+            ? "fallFlip"
+            : "fall"
+        } ${duration}s ${delay}s linear infinite both`,
+      }}
+    >
+      <Image
+        src="/IO5M.gif"
+        alt="Shrimp playing saxophone"
+        width={size}
+        height={size}
+        className="opacity-80"
+        unoptimized
+      />
+    </div>
+  );
+}
+
+export default function Home() {
+  const [tagline] = useState(
+    "the world's first future trillion dollar creative brand."
+  );
+  const [shrimps, setShrimps] = useState<
+    Array<{
+      id: number;
+      left: number;
+      delay: number;
+      duration: number;
+      size: number;
+      animationType: "rotate" | "flip" | "static";
+    }>
+  >([]);
+
+  useEffect(() => {
+    // Generate shrimps with even distribution across the screen
+    const newShrimps = Array.from({ length: 60 }, (_, i) => {
+      const animationType = ["rotate", "flip", "static"][
+        Math.floor(Math.random() * 3)
+      ] as "rotate" | "flip" | "static";
+      
+      // Distribute shrimps more evenly by dividing screen into sections
+      const section = i % 10; // 10 sections across the screen
+      const sectionWidth = 100 / 10; // Each section is 10% wide
+      const left = (section * sectionWidth) + (Math.random() * sectionWidth);
+      
+      return {
+        id: i,
+        left: left,
+        delay: Math.random() * 10, // 0-10 seconds delay
+        duration: 8 + Math.random() * 12, // 8-20 seconds duration
+        size: 40 + Math.random() * 80, // 40-120px
+        animationType,
+      };
+    });
+    setShrimps(newShrimps);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-black overflow-hidden">
+      {/* Raining shrimps */}
+      {shrimps.map((shrimp) => (
+        <Shrimp
+          key={shrimp.id}
+          size={shrimp.size}
+          left={shrimp.left}
+          delay={shrimp.delay}
+          duration={shrimp.duration}
+          animationType={shrimp.animationType}
+        />
+      ))}
+
+      {/* Center message with box */}
+      <div className="absolute inset-0 flex items-center justify-center z-10 p-8">
+        <div className="bg-black/60 backdrop-blur-md border border-white/20 p-8 md:p-12 lg:p-16 rounded-2xl shadow-2xl max-w-5xl">
+          <h1 className="text-white/90 text-center">
+            <div className="text-2xl md:text-3xl lg:text-4xl font-light tracking-widest jazz-text">
+              <span
+                className="font-bold text-white tracking-tight"
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                self-driving jazz
+              </span>{" "}
+              <span className="italic">is {tagline}</span>
+              <br />
+              <span className="italic">🚗🎷</span>
+            </div>
+          </h1>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }
