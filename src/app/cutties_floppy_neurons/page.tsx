@@ -6,7 +6,6 @@ interface MemoryNode {
   id: string;
   x: number;
   y: number;
-  z: number;
   connections: string[];
   glitchIntensity: number;
   pulsePhase: number;
@@ -26,10 +25,6 @@ export default function HomePage() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [time, setTime] = useState(0);
-  const [rotationX, setRotationX] = useState(0);
-  const [rotationY, setRotationY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
 
   // Initialize audio context
   useEffect(() => {
@@ -49,68 +44,89 @@ export default function HomePage() {
       const newNodes: MemoryNode[] = [];
       const newConnections: Connection[] = [];
 
-      // Cluster parameters
-      const centerX = 0;
-      const centerY = 0;
-      const centerZ = 0;
-      const clusterRadius = 400;
-      const nodeCount = 35; // More nodes for a denser cluster
+      // Brain shape parameters
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const brainWidth = window.innerWidth * 0.4;
+      const brainHeight = window.innerHeight * 0.6;
 
-      // Generate random cluster of nodes
-      for (let i = 0; i < nodeCount; i++) {
-        // Random spherical distribution
-        const radius = Math.random() * clusterRadius;
-        const theta = Math.random() * Math.PI * 2; // Random angle around Y axis
-        const phi = Math.acos(2 * Math.random() - 1); // Random angle from Y axis
-
-        const x = centerX + radius * Math.sin(phi) * Math.cos(theta);
-        const y = centerY + radius * Math.cos(phi);
-        const z = centerZ + radius * Math.sin(phi) * Math.sin(theta);
-
-        newNodes.push({
-          id: `cluster-${i}`,
-          x: x + (Math.random() - 0.5) * 50,
-          y: y + (Math.random() - 0.5) * 50,
-          z: z + (Math.random() - 0.5) * 50,
-          connections: [],
-          glitchIntensity: Math.random(),
-          pulsePhase: Math.random() * Math.PI * 2,
-        });
-      }
-
-      // Add some nodes with different distribution patterns for variety
+      // Cerebrum (main brain mass) - upper portion
       for (let i = 0; i < 8; i++) {
-        // Spiral pattern
-        const angle = (i / 7) * Math.PI * 4;
-        const radius = 200 + i * 30;
+        const angle = (i / 7) * Math.PI * 0.8 - Math.PI * 0.4; // -36° to +36°
+        const radius = brainWidth * 0.4 + Math.random() * 20;
         const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
-        const z = centerZ + (Math.random() - 0.5) * 100;
+        const y = centerY - brainHeight * 0.3 + Math.sin(angle) * radius * 0.3;
 
         newNodes.push({
-          id: `spiral-${i}`,
-          x: x + (Math.random() - 0.5) * 40,
-          y: y + (Math.random() - 0.5) * 40,
-          z: z,
+          id: `cerebrum-${i}`,
+          x: x + (Math.random() - 0.5) * 30,
+          y: y + (Math.random() - 0.5) * 20,
           connections: [],
           glitchIntensity: Math.random(),
           pulsePhase: Math.random() * Math.PI * 2,
         });
       }
 
-      // Add some outlier nodes
-      for (let i = 0; i < 5; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const radius = clusterRadius * 0.8 + Math.random() * 200;
-        const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
-        const z = centerZ + (Math.random() - 0.5) * 150;
+      // Cerebellum (lower back) - smaller rounded area
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 3) * Math.PI * 0.6 - Math.PI * 0.3; // -18° to +18°
+        const radius = brainWidth * 0.2 + Math.random() * 15;
+        const x = centerX + Math.cos(angle) * radius * 0.8;
+        const y = centerY + brainHeight * 0.2 + Math.sin(angle) * radius * 0.5;
 
         newNodes.push({
-          id: `outlier-${i}`,
-          x: x + (Math.random() - 0.5) * 60,
-          y: y + (Math.random() - 0.5) * 60,
-          z: z,
+          id: `cerebellum-${i}`,
+          x: x + (Math.random() - 0.5) * 20,
+          y: y + (Math.random() - 0.5) * 15,
+          connections: [],
+          glitchIntensity: Math.random(),
+          pulsePhase: Math.random() * Math.PI * 2,
+        });
+      }
+
+      // Brainstem (bottom extension)
+      for (let i = 0; i < 3; i++) {
+        const x = centerX + (Math.random() - 0.5) * 40;
+        const y = centerY + brainHeight * 0.4 + i * 30;
+
+        newNodes.push({
+          id: `brainstem-${i}`,
+          x: x,
+          y: y,
+          connections: [],
+          glitchIntensity: Math.random(),
+          pulsePhase: Math.random() * Math.PI * 2,
+        });
+      }
+
+      // Frontal lobe (front area)
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 4) * Math.PI * 0.4 - Math.PI * 0.2; // -12° to +12°
+        const radius = brainWidth * 0.35 + Math.random() * 25;
+        const x = centerX + Math.cos(angle) * radius * 1.1;
+        const y = centerY - brainHeight * 0.25 + Math.sin(angle) * radius * 0.4;
+
+        newNodes.push({
+          id: `frontal-${i}`,
+          x: x + (Math.random() - 0.5) * 25,
+          y: y + (Math.random() - 0.5) * 20,
+          connections: [],
+          glitchIntensity: Math.random(),
+          pulsePhase: Math.random() * Math.PI * 2,
+        });
+      }
+
+      // Occipital lobe (back area)
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 3) * Math.PI * 0.5 - Math.PI * 0.25; // -15° to +15°
+        const radius = brainWidth * 0.3 + Math.random() * 20;
+        const x = centerX - Math.cos(angle) * radius * 0.9;
+        const y = centerY - brainHeight * 0.1 + Math.sin(angle) * radius * 0.3;
+
+        newNodes.push({
+          id: `occipital-${i}`,
+          x: x + (Math.random() - 0.5) * 20,
+          y: y + (Math.random() - 0.5) * 15,
           connections: [],
           glitchIntensity: Math.random(),
           pulsePhase: Math.random() * Math.PI * 2,
@@ -153,37 +169,6 @@ export default function HomePage() {
     return () => cancelAnimationFrame(animationId);
   }, []);
 
-  // 3D rotation matrix functions
-  const rotateX = (x: number, y: number, z: number, angle: number) => {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    return {
-      x: x,
-      y: y * cos - z * sin,
-      z: y * sin + z * cos,
-    };
-  };
-
-  const rotateY = (x: number, y: number, z: number, angle: number) => {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    return {
-      x: x * cos + z * sin,
-      y: y,
-      z: -x * sin + z * cos,
-    };
-  };
-
-  // Project 3D to 2D
-  const project3D = (x: number, y: number, z: number) => {
-    const distance = 1000;
-    const scale = distance / (distance + z);
-    return {
-      x: x * scale + window.innerWidth / 2,
-      y: y * scale + window.innerHeight / 2,
-    };
-  };
-
   // Handle mouse movement
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -193,28 +178,9 @@ export default function HomePage() {
     const y = e.clientY - rect.top;
     setMousePos({ x, y });
 
-    if (isDragging) {
-      const deltaX = x - lastMousePos.x;
-      const deltaY = y - lastMousePos.y;
-
-      setRotationY((prev) => prev + deltaX * 0.01);
-      setRotationX((prev) => prev + deltaY * 0.01);
-
-      setLastMousePos({ x, y });
-    }
-
-    // Check for node hover (using projected coordinates)
-    const projectedNodes = nodes.map((node) => {
-      let rotated = rotateX(node.x, node.y, node.z, rotationX);
-      rotated = rotateY(rotated.x, rotated.y, rotated.z, rotationY);
-      const projected = project3D(rotated.x, rotated.y, rotated.z);
-      return { ...node, projectedX: projected.x, projectedY: projected.y };
-    });
-
-    const hovered = projectedNodes.find((node) => {
-      const distance = Math.sqrt(
-        (x - node.projectedX) ** 2 + (y - node.projectedY) ** 2
-      );
+    // Check for node hover
+    const hovered = nodes.find((node) => {
+      const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
       return distance < 30;
     });
 
@@ -224,15 +190,6 @@ export default function HomePage() {
     } else if (!hovered) {
       setHoveredNode(null);
     }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDragging(true);
-    setLastMousePos({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
   };
 
   // Play sound for node interaction
@@ -283,40 +240,12 @@ export default function HomePage() {
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Sort nodes by Z-depth for proper 3D rendering
-    const sortedNodes = [...nodes].sort((a, b) => {
-      let rotatedA = rotateX(a.x, a.y, a.z, rotationX);
-      rotatedA = rotateY(rotatedA.x, rotatedA.y, rotatedA.z, rotationY);
-      let rotatedB = rotateX(b.x, b.y, b.z, rotationX);
-      rotatedB = rotateY(rotatedB.x, rotatedB.y, rotatedB.z, rotationY);
-      return rotatedB.z - rotatedA.z;
-    });
-
     // Draw connections with glitch effect
     connections.forEach((connection) => {
-      const fromNode = sortedNodes.find((n) => n.id === connection.from);
-      const toNode = sortedNodes.find((n) => n.id === connection.to);
+      const fromNode = nodes.find((n) => n.id === connection.from);
+      const toNode = nodes.find((n) => n.id === connection.to);
 
       if (!fromNode || !toNode) return;
-
-      // Apply 3D rotation
-      let rotatedFrom = rotateX(fromNode.x, fromNode.y, fromNode.z, rotationX);
-      rotatedFrom = rotateY(
-        rotatedFrom.x,
-        rotatedFrom.y,
-        rotatedFrom.z,
-        rotationY
-      );
-      let rotatedTo = rotateX(toNode.x, toNode.y, toNode.z, rotationX);
-      rotatedTo = rotateY(rotatedTo.x, rotatedTo.y, rotatedTo.z, rotationY);
-
-      // Project to 2D
-      const projectedFrom = project3D(
-        rotatedFrom.x,
-        rotatedFrom.y,
-        rotatedFrom.z
-      );
-      const projectedTo = project3D(rotatedTo.x, rotatedTo.y, rotatedTo.z);
 
       ctx.strokeStyle = "#00ffff";
       ctx.lineWidth = 1;
@@ -327,20 +256,13 @@ export default function HomePage() {
       const glitchAmount = Math.sin(time * 10 + connection.glitchOffset) * 3;
 
       ctx.beginPath();
-      ctx.moveTo(projectedFrom.x + glitchAmount, projectedFrom.y);
-      ctx.lineTo(projectedTo.x - glitchAmount, projectedTo.y);
+      ctx.moveTo(fromNode.x + glitchAmount, fromNode.y);
+      ctx.lineTo(toNode.x - glitchAmount, toNode.y);
       ctx.stroke();
     });
 
     // Draw nodes
-    sortedNodes.forEach((node) => {
-      // Apply 3D rotation
-      let rotated = rotateX(node.x, node.y, node.z, rotationX);
-      rotated = rotateY(rotated.x, rotated.y, rotated.z, rotationY);
-
-      // Project to 2D
-      const projected = project3D(rotated.x, rotated.y, rotated.z);
-
+    nodes.forEach((node) => {
       const pulse = Math.sin(time * 3 + node.pulsePhase) * 0.3 + 0.7;
       const glitchX = Math.sin(time * 20 + node.glitchIntensity * 10) * 2;
       const glitchY = Math.cos(time * 15 + node.glitchIntensity * 8) * 2;
@@ -350,11 +272,11 @@ export default function HomePage() {
 
       // Node glow
       const gradient = ctx.createRadialGradient(
-        projected.x + glitchX,
-        projected.y + glitchY,
+        node.x + glitchX,
+        node.y + glitchY,
         0,
-        projected.x + glitchX,
-        projected.y + glitchY,
+        node.x + glitchX,
+        node.y + glitchY,
         radius * 2
       );
       gradient.addColorStop(0, isHovered ? "#00ffff" : "#00ff88");
@@ -363,25 +285,13 @@ export default function HomePage() {
 
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(
-        projected.x + glitchX,
-        projected.y + glitchY,
-        radius * 2,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(node.x + glitchX, node.y + glitchY, radius * 2, 0, Math.PI * 2);
       ctx.fill();
 
       // Node core
       ctx.fillStyle = isHovered ? "#ffffff" : "#00ffff";
       ctx.beginPath();
-      ctx.arc(
-        projected.x + glitchX,
-        projected.y + glitchY,
-        radius,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(node.x + glitchX, node.y + glitchY, radius, 0, Math.PI * 2);
       ctx.fill();
 
       // Wireframe effect
@@ -389,13 +299,7 @@ export default function HomePage() {
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.8;
       ctx.beginPath();
-      ctx.arc(
-        projected.x + glitchX,
-        projected.y + glitchY,
-        radius + 5,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(node.x + glitchX, node.y + glitchY, radius + 5, 0, Math.PI * 2);
       ctx.stroke();
       ctx.globalAlpha = 1;
     });
@@ -413,7 +317,7 @@ export default function HomePage() {
 
     ctx.fillStyle = groundGradient;
     ctx.fillRect(0, canvas.height * 0.3, canvas.width, canvas.height * 0.7);
-  }, [nodes, connections, time, hoveredNode, rotationX, rotationY]);
+  }, [nodes, connections, time, hoveredNode]);
 
   // Handle window resize
   useEffect(() => {
@@ -434,9 +338,6 @@ export default function HomePage() {
         ref={canvasRef}
         className="absolute inset-0 cursor-pointer"
         onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
         onTouchMove={(e) => {
           e.preventDefault();
           const touch = e.touches[0];
@@ -454,7 +355,7 @@ export default function HomePage() {
       <div className="absolute top-8 left-8 z-10 text-cyan-400 font-mono text-sm">
         <div className="mb-2">MEMORY TREE</div>
         <div className="text-xs opacity-70">
-          Drag to rotate • Touch the nodes to hear the glitch
+          Touch the nodes to hear the glitch
         </div>
       </div>
 
