@@ -9,31 +9,41 @@ export interface DataLog {
 
 export const dataLogs: DataLog[] = [
   {
-    id: "cluster-0",
-    timestamp: new Date("2024-01-15T08:30:00Z"),
-    tags: ["system", "startup", "initialization"],
+    id: "walk-my-doggo",
+    timestamp: new Date("2025-08-02T17:30:00Z"),
+    tags: ["doggo", "walk", "jmill", "botanical garden", "orlando"],
     content:
-      "System initialization sequence completed. All core modules loaded successfully.",
-    images: ["/system-startup.png", "/core-modules.png"],
-    links: ["https://docs.system/startup", "https://docs.system/core-modules"],
+      "Walked my doggo for half an hour in Mead Botanical Garden after coffee. He was so happy and so was I. As we took pictures in the garden trying to identify the plants we don't know, Doggo busted out this app called Seek by iNatualist that is completely free and have accomplishment badges. That's pretty cool, I wish we have more free and wholsesome apps like this.",
+    images: ["/cuttie/1.png", "/cuttie/2.png"],
+    links: ["https://share.google/gYAckrd9hOsganbTN"],
+  },
+
+  {
+    id: "black-phine-coffee-bar",
+    timestamp: new Date("2025-08-02T16:30:00Z"),
+    tags: ["coffee", "vibe coding", "orlando"],
+    content:
+      "Discovered a random coffe place in orlando that has a super chill interior, a lot of plants, Asian-owned, good vibe.",
+    images: ["/cuttie/0.png"],
+    links: ["https://share.google/GLe4MlvcwqZLLkZno"],
   },
   {
-    id: "cluster-1",
-    timestamp: new Date("2024-01-15T08:32:15Z"),
-    tags: ["memory", "allocation", "cache"],
+    id: "florida-sky",
+    timestamp: new Date("2025-08-02T00:32:15Z"),
+    tags: ["sky", "orlando", "florida"],
     content:
-      "Memory pool allocated: 2.4GB reserved for neural network operations.",
-    images: ["/memory-allocation.png", "/neural-network.png"],
-    links: ["https://docs.system/memory", "https://docs.system/neural-network"],
+      "Florida always has this trippy looking sky that would literally paint every white painted house dreamy purple. That's how I discovered this sky. No Photoshop. Absolutely breathtaking.",
+    images: ["/cuttie/3.png"],
+    links: [],
   },
   {
-    id: "cluster-2",
-    timestamp: new Date("2024-01-15T08:35:42Z"),
-    tags: ["network", "connection", "external"],
+    id: "talay-[thursday-dinner-series]",
+    timestamp: new Date("2025-08-02T18:35:42Z"),
+    tags: ["thursday", "dinner", "thai", "talay", "orlando"],
     content:
-      "External API connection established. Response time: 127ms average.",
-    images: ["/api-connection.png", "/network-latency.png"],
-    links: ["https://docs.system/api", "https://docs.system/network"],
+      "I've been going to Talay for the past 2 years. It's a great place to eat and the food is always good. I've been going to Talay for the past 2 years. It's a great place to eat and the food is always good.",
+    images: ["/cuttie/4.png", "/cuttie/5.png"],
+    links: [],
   },
   {
     id: "cluster-3",
