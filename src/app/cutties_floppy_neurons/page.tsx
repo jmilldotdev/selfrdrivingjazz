@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { dataLogs, DataLog } from "./data";
+import NodePreview from "./NodePreview";
 
 interface MemoryNode {
   id: string;
@@ -40,6 +41,10 @@ export default function HomePage() {
   const [selectedNode, setSelectedNode] = useState<MemoryNode | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(
+    new Map()
+  );
 
   // Helper function to get relative time
   const getRelativeTime = (timestamp: Date) => {
@@ -72,11 +77,61 @@ export default function HomePage() {
     audioContextRef.current = new (window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext)();
+
+    // Resume audio context on first user interaction
+    const resumeAudioContext = async () => {
+      if (
+        audioContextRef.current &&
+        audioContextRef.current.state === "suspended"
+      ) {
+        try {
+          await audioContextRef.current.resume();
+        } catch (error) {
+          // Silent error handling
+        }
+      }
+    };
+
+    // Add event listeners for user interaction
+    const events = ["click", "touchstart", "keydown", "mousedown", "mousemove"];
+    events.forEach((event) => {
+      document.addEventListener(event, resumeAudioContext, { once: true });
+    });
+
     return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
+      events.forEach((event) => {
+        document.removeEventListener(event, resumeAudioContext);
+      });
     };
+  }, []);
+
+  // Load images into cache
+  useEffect(() => {
+    const loadImages = async () => {
+      const newCache = new Map<string, HTMLImageElement>();
+
+      for (const dataLog of dataLogs) {
+        for (const imageSrc of dataLog.images) {
+          if (!newCache.has(imageSrc)) {
+            const img = new window.Image();
+            img.crossOrigin = "anonymous";
+            await new Promise<void>((resolve, reject) => {
+              img.onload = () => resolve();
+              img.onerror = () => reject();
+              img.src = imageSrc;
+            });
+            newCache.set(imageSrc, img);
+          }
+        }
+      }
+
+      setImageCache(newCache);
+    };
+
+    loadImages();
   }, []);
 
   // Generate memory tree structure
@@ -252,15 +307,28 @@ export default function HomePage() {
     });
 
     const hovered = projectedNodes.find((node) => {
-      const distance = Math.sqrt(
-        (x - node.projectedX) ** 2 + (y - node.projectedY) ** 2
-      );
-      return distance < 30;
+      if (previewMode && node.dataLog) {
+        // Square preview mode hover detection
+        const size = 60; // Default size for hover detection
+        const halfSize = size / 2;
+        return (
+          x >= node.projectedX - halfSize &&
+          x <= node.projectedX + halfSize &&
+          y >= node.projectedY - halfSize &&
+          y <= node.projectedY + halfSize
+        );
+      } else {
+        // Circular node hover detection
+        const distance = Math.sqrt(
+          (x - node.projectedX) ** 2 + (y - node.projectedY) ** 2
+        );
+        return distance < 30;
+      }
     });
 
     if (hovered && hovered.id !== hoveredNode) {
       setHoveredNode(hovered.id);
-      playNodeSound(hovered);
+      playNodeSound(hovered).catch(console.error);
     } else if (!hovered) {
       setHoveredNode(null);
     }
@@ -303,10 +371,23 @@ export default function HomePage() {
     });
 
     const clicked = projectedNodes.find((node) => {
-      const distance = Math.sqrt(
-        (x - node.projectedX) ** 2 + (y - node.projectedY) ** 2
-      );
-      return distance < 30;
+      if (previewMode && node.dataLog) {
+        // Square preview mode click detection
+        const size = 60; // Default size for click detection
+        const halfSize = size / 2;
+        return (
+          x >= node.projectedX - halfSize &&
+          x <= node.projectedX + halfSize &&
+          y >= node.projectedY - halfSize &&
+          y <= node.projectedY + halfSize
+        );
+      } else {
+        // Circular node click detection
+        const distance = Math.sqrt(
+          (x - node.projectedX) ** 2 + (y - node.projectedY) ** 2
+        );
+        return distance < 30;
+      }
     });
 
     if (clicked) {
@@ -323,35 +404,48 @@ export default function HomePage() {
   };
 
   // Play sound for node interaction
-  const playNodeSound = (node: MemoryNode) => {
+  const playNodeSound = async (node: MemoryNode) => {
     if (!audioContextRef.current) return;
 
-    const oscillator = audioContextRef.current.createOscillator();
-    const gainNode = audioContextRef.current.createGain();
+    // Resume audio context if suspended
+    if (audioContextRef.current.state === "suspended") {
+      try {
+        await audioContextRef.current.resume();
+      } catch (error) {
+        return;
+      }
+    }
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContextRef.current.destination);
+    try {
+      const oscillator = audioContextRef.current.createOscillator();
+      const gainNode = audioContextRef.current.createGain();
 
-    // Create glitchy sound based on node properties
-    const baseFreq = 200 + node.glitchIntensity * 400;
-    oscillator.frequency.setValueAtTime(
-      baseFreq,
-      audioContextRef.current.currentTime
-    );
-    oscillator.frequency.exponentialRampToValueAtTime(
-      baseFreq * (1 + node.glitchIntensity * 0.5),
-      audioContextRef.current.currentTime + 0.1
-    );
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContextRef.current.destination);
 
-    gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(
-      0.01,
-      audioContextRef.current.currentTime + 0.3
-    );
+      // Create glitchy sound based on node properties
+      const baseFreq = 200 + node.glitchIntensity * 400;
+      oscillator.frequency.setValueAtTime(
+        baseFreq,
+        audioContextRef.current.currentTime
+      );
+      oscillator.frequency.exponentialRampToValueAtTime(
+        baseFreq * (1 + node.glitchIntensity * 0.5),
+        audioContextRef.current.currentTime + 0.1
+      );
 
-    oscillator.type = "sine";
-    oscillator.start();
-    oscillator.stop(audioContextRef.current.currentTime + 0.3);
+      gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.01,
+        audioContextRef.current.currentTime + 0.3
+      );
+
+      oscillator.type = "sine";
+      oscillator.start();
+      oscillator.stop(audioContextRef.current.currentTime + 0.3);
+    } catch (error) {
+      // Silent error handling
+    }
   };
 
   // Render canvas
@@ -434,68 +528,194 @@ export default function HomePage() {
 
       const isHovered = hoveredNode === node.id;
       const isSelected = selectedNode?.id === node.id;
-      const radius = isSelected ? 20 : isHovered ? 15 : 8 + pulse * 5;
 
-      // Node glow
-      const gradient = ctx.createRadialGradient(
-        projected.x + glitchX,
-        projected.y + glitchY,
-        0,
-        projected.x + glitchX,
-        projected.y + glitchY,
-        radius * 2
-      );
-      gradient.addColorStop(
-        0,
-        isSelected ? "#ff00ff" : isHovered ? "#00ffff" : "#00ff88"
-      );
-      gradient.addColorStop(
-        0.5,
-        isSelected ? "#ff0088" : isHovered ? "#0088ff" : "#00ff44"
-      );
-      gradient.addColorStop(1, "transparent");
+      if (previewMode && node.dataLog) {
+        // Draw preview squares
+        const size = isSelected ? 80 : isHovered ? 70 : 60;
+        const halfSize = size / 2;
 
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(
-        projected.x + glitchX,
-        projected.y + glitchY,
-        radius * 2,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
+        // Preview square background
+        ctx.fillStyle = isSelected
+          ? "rgba(0, 255, 255, 0.3)"
+          : isHovered
+          ? "rgba(0, 255, 255, 0.2)"
+          : "rgba(0, 0, 0, 0.8)";
+        ctx.fillRect(
+          projected.x - halfSize + glitchX,
+          projected.y - halfSize + glitchY,
+          size,
+          size
+        );
 
-      // Node core
-      ctx.fillStyle = isSelected
-        ? "#ffffff"
-        : isHovered
-        ? "#ffffff"
-        : "#00ffff";
-      ctx.beginPath();
-      ctx.arc(
-        projected.x + glitchX,
-        projected.y + glitchY,
-        radius,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
+        // Preview square border
+        ctx.strokeStyle = isSelected
+          ? "#00ffff"
+          : isHovered
+          ? "#00ffff"
+          : "#00ffff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          projected.x - halfSize + glitchX,
+          projected.y - halfSize + glitchY,
+          size,
+          size
+        );
 
-      // Wireframe effect
-      ctx.strokeStyle = "#00ffff";
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.8;
-      ctx.beginPath();
-      ctx.arc(
-        projected.x + glitchX,
-        projected.y + glitchY,
-        radius + 5,
-        0,
-        Math.PI * 2
-      );
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+        // Draw content preview
+        if (node.dataLog.images.length > 0) {
+          const imageSrc = node.dataLog.images[0];
+          const cachedImg = imageCache.get(imageSrc);
+
+          if (cachedImg) {
+            // Draw image to fill the square while maintaining aspect ratio (cover approach)
+            const imgAspectRatio = cachedImg.width / cachedImg.height;
+            const boxSize = size - 8;
+
+            let sourceX = 0;
+            let sourceY = 0;
+            let sourceWidth = cachedImg.width;
+            let sourceHeight = cachedImg.height;
+
+            if (imgAspectRatio > 1) {
+              // Image is wider than tall - crop the sides
+              sourceWidth = cachedImg.height;
+              sourceX = (cachedImg.width - sourceWidth) / 2;
+            } else if (imgAspectRatio < 1) {
+              // Image is taller than wide - crop the top/bottom
+              sourceHeight = cachedImg.width;
+              sourceY = (cachedImg.height - sourceHeight) / 2;
+            }
+
+            ctx.drawImage(
+              cachedImg,
+              sourceX,
+              sourceY,
+              sourceWidth,
+              sourceHeight, // Source rectangle
+              projected.x - halfSize + 4 + glitchX,
+              projected.y - halfSize + 4 + glitchY,
+              boxSize,
+              boxSize // Destination rectangle
+            );
+          } else {
+            // Fallback to placeholder if image not loaded
+            ctx.fillStyle = "#00ff88";
+            ctx.fillRect(
+              projected.x - halfSize + 4 + glitchX,
+              projected.y - halfSize + 4 + glitchY,
+              size - 8,
+              size - 8
+            );
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "12px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(
+              "IMG",
+              projected.x + glitchX,
+              projected.y + glitchY + 4
+            );
+          }
+        } else {
+          // Draw text preview
+          const text = node.dataLog.content;
+          const maxChars = 45;
+          const displayText =
+            text.length > maxChars ? text.substring(0, maxChars) + "..." : text;
+
+          ctx.fillStyle = "#00ffff";
+          ctx.font = "8px monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          // Split text into lines
+          const words = displayText.split(" ");
+          const lines: string[] = [];
+          let currentLine = "";
+
+          words.forEach((word) => {
+            if ((currentLine + word).length <= 8) {
+              currentLine += (currentLine ? " " : "") + word;
+            } else {
+              if (currentLine) lines.push(currentLine);
+              currentLine = word;
+            }
+          });
+          if (currentLine) lines.push(currentLine);
+
+          lines.slice(0, 4).forEach((line, index) => {
+            ctx.fillText(
+              line,
+              projected.x + glitchX,
+              projected.y - halfSize + 12 + index * 10 + glitchY
+            );
+          });
+        }
+      } else {
+        // Original circular node rendering
+        const radius = isSelected ? 20 : isHovered ? 15 : 8 + pulse * 5;
+
+        // Node glow
+        const gradient = ctx.createRadialGradient(
+          projected.x + glitchX,
+          projected.y + glitchY,
+          0,
+          projected.x + glitchX,
+          projected.y + glitchY,
+          radius * 2
+        );
+        gradient.addColorStop(
+          0,
+          isSelected ? "#ff00ff" : isHovered ? "#00ffff" : "#00ff88"
+        );
+        gradient.addColorStop(
+          0.5,
+          isSelected ? "#ff0088" : isHovered ? "#0088ff" : "#00ff44"
+        );
+        gradient.addColorStop(1, "transparent");
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(
+          projected.x + glitchX,
+          projected.y + glitchY,
+          radius * 2,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Node core
+        ctx.fillStyle = isSelected
+          ? "#ffffff"
+          : isHovered
+          ? "#ffffff"
+          : "#00ffff";
+        ctx.beginPath();
+        ctx.arc(
+          projected.x + glitchX,
+          projected.y + glitchY,
+          radius,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Wireframe effect
+        ctx.strokeStyle = "#00ffff";
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath();
+        ctx.arc(
+          projected.x + glitchX,
+          projected.y + glitchY,
+          radius + 5,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
     });
 
     // Draw growing light effect from ground
@@ -520,6 +740,8 @@ export default function HomePage() {
     rotationY,
     zoom,
     sidebarCollapsed,
+    previewMode,
+    imageCache,
   ]);
 
   // Handle window resize
@@ -639,62 +861,90 @@ export default function HomePage() {
 
         {!sidebarCollapsed && (
           <div className="overflow-y-auto h-full">
-            <div className="p-4 space-y-2">
-              {nodes.map((node) => (
-                <div
-                  key={node.id}
-                  onClick={() => handleNodeClick(node)}
-                  className={`p-3 rounded border cursor-pointer transition-all ${
-                    selectedNode?.id === node.id
-                      ? "bg-cyan-400/20 border-cyan-400 text-white"
-                      : "bg-black/50 border-cyan-400/30 text-cyan-400 hover:bg-cyan-400/10"
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold">
-                        {node.id.length > 15
-                          ? `${node.id.substring(0, 15)}...`
-                          : node.id}
-                      </span>
+            {previewMode ? (
+              // Grid view for preview mode
+              <div className="p-4">
+                <div className="grid grid-cols-4 gap-3">
+                  {nodes.map((node) => (
+                    <div key={node.id} className="flex justify-center">
                       {node.dataLog && (
-                        <span className="text-xs text-cyan-300/70">
-                          {getRelativeTime(node.dataLog.timestamp)}
+                        <NodePreview
+                          dataLog={node.dataLog}
+                          isSelected={selectedNode?.id === node.id}
+                          onClick={() => handleNodeClick(node)}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              // List view for normal mode
+              <div className="p-4 space-y-2">
+                {nodes.map((node) => (
+                  <div
+                    key={node.id}
+                    onClick={() => handleNodeClick(node)}
+                    className={`p-3 rounded border cursor-pointer transition-all ${
+                      selectedNode?.id === node.id
+                        ? "bg-cyan-400/20 border-cyan-400 text-white"
+                        : "bg-black/50 border-cyan-400/30 text-cyan-400 hover:bg-cyan-400/10"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-bold">
+                          {node.id.length > 15
+                            ? `${node.id.substring(0, 15)}...`
+                            : node.id}
+                        </span>
+                        {node.dataLog && (
+                          <span className="text-xs text-cyan-300/70">
+                            {getRelativeTime(node.dataLog.timestamp)}
+                          </span>
+                        )}
+                      </div>
+                      {node.dataLog &&
+                        getRelativeTime(node.dataLog.timestamp) === null && (
+                          <span className="text-xs opacity-70">
+                            {node.dataLog.timestamp.toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "numeric",
+                              }
+                            )}
+                          </span>
+                        )}
+                    </div>
+                    <div className="text-xs opacity-80 line-clamp-2 overflow-hidden">
+                      <div className="break-words">
+                        {node.dataLog?.content?.substring(0, 10)}
+                        {node.dataLog?.content &&
+                          node.dataLog.content.length > 10 &&
+                          "..."}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {node.dataLog?.tags.slice(0, 2).map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-1.5 py-0.5 bg-cyan-400/20 border border-cyan-400/50 rounded text-xs"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      {node.dataLog && node.dataLog.tags.length > 2 && (
+                        <span className="px-1.5 py-0.5 bg-cyan-400/20 border border-cyan-400/50 rounded text-xs">
+                          +{node.dataLog.tags.length - 2}
                         </span>
                       )}
                     </div>
-                    {node.dataLog &&
-                      getRelativeTime(node.dataLog.timestamp) === null && (
-                        <span className="text-xs opacity-70">
-                          {node.dataLog.timestamp.toLocaleDateString("en-US", {
-                            month: "2-digit",
-                            day: "2-digit",
-                            year: "numeric",
-                          })}
-                        </span>
-                      )}
                   </div>
-                  <div className="text-xs opacity-80 line-clamp-2">
-                    {node.dataLog?.content}
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {node.dataLog?.tags.slice(0, 2).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-1.5 py-0.5 bg-cyan-400/20 border border-cyan-400/50 rounded text-xs"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {node.dataLog && node.dataLog.tags.length > 2 && (
-                      <span className="px-1.5 py-0.5 bg-cyan-400/20 border border-cyan-400/50 rounded text-xs">
-                        +{node.dataLog.tags.length - 2}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -713,8 +963,22 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Preview Mode Button */}
+        <div className="absolute top-8 right-8 text-cyan-400 font-mono text-sm z-20">
+          <button
+            onClick={() => setPreviewMode(!previewMode)}
+            className={`px-4 py-2 border border-cyan-400/50 rounded transition-all duration-200 pointer-events-auto ${
+              previewMode
+                ? "bg-cyan-400/20 text-white border-cyan-400"
+                : "bg-black/50 text-cyan-400 hover:bg-cyan-400/10"
+            }`}
+          >
+            {previewMode ? "Hide Preview" : "Preview"}
+          </button>
+        </div>
+
         {/* FPS counter */}
-        <div className="absolute top-8 right-8 text-cyan-400 font-mono text-xs">
+        <div className="absolute top-20 right-8 text-cyan-400 font-mono text-xs">
           <div>{Math.round(1000 / 16)} FPS</div>
           <div className="opacity-70">Zoom: {Math.round(zoom * 100)}%</div>
         </div>
@@ -839,14 +1103,40 @@ export default function HomePage() {
         )}
 
         {/* Hover Node Info */}
-        {hoveredNode && !selectedNode && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/90 border border-cyan-400/50 rounded-lg p-6 text-cyan-400 font-mono text-center min-w-[200px]">
-            <div className="font-bold mb-2 text-lg">
-              Hover: {hoveredNode && hoveredNode.length > 10 ? `${hoveredNode.substring(0, 10)}...` : hoveredNode}
-            </div>
-            <div className="text-sm opacity-70">Click for details</div>
-          </div>
-        )}
+        {hoveredNode &&
+          !selectedNode &&
+          (() => {
+            const hoveredNodeData = nodes.find((n) => n.id === hoveredNode);
+            if (!hoveredNodeData) return null;
+
+            // Get projected position of the hovered node
+            let rotated = rotateX(
+              hoveredNodeData.x,
+              hoveredNodeData.y,
+              hoveredNodeData.z,
+              rotationX
+            );
+            rotated = rotateY(rotated.x, rotated.y, rotated.z, rotationY);
+            const projected = project3D(rotated.x, rotated.y, rotated.z);
+
+            return (
+              <div
+                className="absolute bg-black/90 border border-cyan-400/50 pt-2 px-2 rounded-lg text-cyan-400 font-mono text-center min-w-[200px] pointer-events-none"
+                style={{
+                  left: `${projected.x + 40}px`,
+                  top: `${projected.y - 50}px`,
+                  transform: "translateY(-50%)",
+                }}
+              >
+                <div className="font-bold mb-2 text-xs">
+                  {hoveredNode && hoveredNode.length > 25
+                    ? `${hoveredNode.substring(0, 25)}...`
+                    : hoveredNode}
+                </div>
+                {/* <div className="text-sm opacity-70">Click for details</div> */}
+              </div>
+            );
+          })()}
       </div>
     </div>
   );
